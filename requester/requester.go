@@ -27,6 +27,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/rickzhen/hey/metrics"
 	"golang.org/x/net/http2"
 )
 
@@ -92,12 +93,14 @@ type Work struct {
 	// Writer is where results will be written. If nil, results are written to stdout.
 	Writer io.Writer
 
-	initOnce sync.Once
-	results  chan *result
-	stopCh   chan struct{}
-	start    time.Duration
+	initOnce  sync.Once
+	results   chan *result
+	snapshots chan *result
+	stopCh    chan struct{}
+	start     time.Duration
 
 	report *report
+	miner  *metrics.Miner
 }
 
 func (b *Work) writer() io.Writer {
@@ -111,6 +114,7 @@ func (b *Work) writer() io.Writer {
 func (b *Work) Init() {
 	b.initOnce.Do(func() {
 		b.results = make(chan *result, min(b.C*1000, maxResult))
+		b.snapshots = make(chan *result, min(b.C*1000, maxResult))
 		b.stopCh = make(chan struct{}, b.C)
 	})
 }
@@ -121,14 +125,20 @@ func (b *Work) Run() {
 	b.Init()
 	b.start = now()
 	b.report = newReport(b.writer(), b.results, b.Output, b.N)
+	b.miner = metrics.NewMiner()
 	// Run the reporter first, it polls the result channel until it is closed.
+	go func() {
+		b.miner.Run()
+	}()
+	go func() {
+		b.runMiner()
+	}()
 	go func() {
 		runReporter(b.report)
 	}()
 	b.runWorkers()
 	b.Finish()
 }
-
 func (b *Work) Stop() {
 	// Send stop signal so that workers can stop gracefully.
 	for i := 0; i < b.C; i++ {
@@ -138,10 +148,12 @@ func (b *Work) Stop() {
 
 func (b *Work) Finish() {
 	close(b.results)
+	close(b.snapshots)
 	total := now() - b.start
 	// Wait until the reporter is done.
 	<-b.report.done
 	b.report.finalize(total)
+	b.miner.Stop()
 }
 
 func (b *Work) makeRequest(c *http.Client) {
@@ -192,7 +204,7 @@ func (b *Work) makeRequest(c *http.Client) {
 	t := now()
 	resDuration = t - resStart
 	finish := t - s
-	b.results <- &result{
+	r := &result{
 		offset:        s,
 		statusCode:    code,
 		duration:      finish,
@@ -204,6 +216,8 @@ func (b *Work) makeRequest(c *http.Client) {
 		resDuration:   resDuration,
 		delayDuration: delayDuration,
 	}
+	b.results <- r
+	b.snapshots <- r
 }
 
 func (b *Work) runWorker(client *http.Client, n int) {

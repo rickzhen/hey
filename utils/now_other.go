@@ -15,11 +15,11 @@
 //go:build !windows
 // +build !windows
 
-package requester
+package utils
 
 import "time"
 
 var startTime = time.Now()
 
 // now returns time.Duration using stdlib time
-func now() time.Duration { return time.Since(startTime) }
+func Now() time.Duration { return time.Since(startTime) }

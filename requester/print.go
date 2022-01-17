@@ -40,6 +40,8 @@ import (
 	"fmt"
 	"strings"
 	"text/template"
+
+	"github.com/rickzhen/hey/snapshot"
 )
 
 func newTemplate(output string) *template.Template {
@@ -73,7 +75,7 @@ func formatNumberInt(duration int) string {
 	return fmt.Sprintf("%d", duration)
 }
 
-func histogram(buckets []Bucket) string {
+func histogram(buckets []snapshot.Bucket) string {
 	max := 0
 	for _, b := range buckets {
 		if v := b.Count; v > max {

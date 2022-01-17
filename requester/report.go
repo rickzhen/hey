@@ -21,6 +21,8 @@ import (
 	"log"
 	"sort"
 	"time"
+
+	"github.com/rickzhen/hey/snapshot"
 )
 
 const (
@@ -140,8 +142,8 @@ func (r *report) printf(s string, v ...interface{}) {
 	fmt.Fprintf(r.w, s, v...)
 }
 
-func (r *report) snapshot() Report {
-	snapshot := Report{
+func (r *report) snapshot() snapshot.Report {
+	snapshot := snapshot.Report{
 		AvgTotal:    r.avgTotal,
 		Average:     r.average,
 		Rps:         r.rps,
@@ -214,7 +216,7 @@ func (r *report) snapshot() Report {
 	return snapshot
 }
 
-func (r *report) latencies() []LatencyDistribution {
+func (r *report) latencies() []snapshot.LatencyDistribution {
 	pctls := []int{10, 25, 50, 75, 90, 95, 99}
 	data := make([]float64, len(pctls))
 	j := 0
@@ -225,16 +227,16 @@ func (r *report) latencies() []LatencyDistribution {
 			j++
 		}
 	}
-	res := make([]LatencyDistribution, len(pctls))
+	res := make([]snapshot.LatencyDistribution, len(pctls))
 	for i := 0; i < len(pctls); i++ {
 		if data[i] > 0 {
-			res[i] = LatencyDistribution{Percentage: pctls[i], Latency: data[i]}
+			res[i] = snapshot.LatencyDistribution{Percentage: pctls[i], Latency: data[i]}
 		}
 	}
 	return res
 }
 
-func (r *report) histogram() []Bucket {
+func (r *report) histogram() []snapshot.Bucket {
 	bc := 10
 	buckets := make([]float64, bc+1)
 	counts := make([]int, bc+1)
@@ -256,68 +258,13 @@ func (r *report) histogram() []Bucket {
 			bi++
 		}
 	}
-	res := make([]Bucket, len(buckets))
+	res := make([]snapshot.Bucket, len(buckets))
 	for i := 0; i < len(buckets); i++ {
-		res[i] = Bucket{
+		res[i] = snapshot.Bucket{
 			Mark:      buckets[i],
 			Count:     counts[i],
 			Frequency: float64(counts[i]) / float64(len(r.lats)),
 		}
 	}
 	return res
-}
-
-type Report struct {
-	AvgTotal float64
-	Fastest  float64
-	Slowest  float64
-	Average  float64
-	Rps      float64
-
-	AvgConn  float64
-	AvgDNS   float64
-	AvgReq   float64
-	AvgRes   float64
-	AvgDelay float64
-	ConnMax  float64
-	ConnMin  float64
-	DnsMax   float64
-	DnsMin   float64
-	ReqMax   float64
-	ReqMin   float64
-	ResMax   float64
-	ResMin   float64
-	DelayMax float64
-	DelayMin float64
-
-	Lats        []float64
-	ConnLats    []float64
-	DnsLats     []float64
-	ReqLats     []float64
-	ResLats     []float64
-	DelayLats   []float64
-	Offsets     []float64
-	StatusCodes []int
-
-	Total time.Duration
-
-	ErrorDist      map[string]int
-	StatusCodeDist map[int]int
-	SizeTotal      int64
-	SizeReq        int64
-	NumRes         int64
-
-	LatencyDistribution []LatencyDistribution
-	Histogram           []Bucket
-}
-
-type LatencyDistribution struct {
-	Percentage int
-	Latency    float64
-}
-
-type Bucket struct {
-	Mark      float64
-	Count     int
-	Frequency float64
 }
