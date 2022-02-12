@@ -99,6 +99,11 @@ type Work struct {
 	stopCh    chan struct{}
 	start     time.Duration
 
+	DisableMetrics  bool
+	MetricsHost     string
+	MetricsPort     int
+	MetricsInterval int
+
 	report *report
 	miner  *metrics.Miner
 }
@@ -125,14 +130,17 @@ func (b *Work) Run() {
 	b.Init()
 	b.start = now()
 	b.report = newReport(b.writer(), b.results, b.Output, b.N)
-	b.miner = metrics.NewMiner()
 	// Run the reporter first, it polls the result channel until it is closed.
-	go func() {
-		b.miner.Run()
-	}()
-	go func() {
-		b.runMiner()
-	}()
+	b.miner = metrics.NewMiner()
+	if !b.DisableMetrics {
+		b.miner.Init(b.MetricsHost, b.MetricsPort, b.MetricsInterval)
+		go func() {
+			b.miner.Run()
+		}()
+		go func() {
+			b.runMiner()
+		}()
+	}
 	go func() {
 		runReporter(b.report)
 	}()

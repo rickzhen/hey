@@ -64,6 +64,11 @@ var (
 	disableKeepAlives  = flag.Bool("disable-keepalive", false, "")
 	disableRedirects   = flag.Bool("disable-redirects", false, "")
 	proxyAddr          = flag.String("x", "", "")
+
+	disableMetrics  = flag.Bool("disable-metrics", false, "")
+	metricsHost     = flag.String("metrics-host", "localhost", "")
+	metricsPort     = flag.Int("metrics-port", 1010, "")
+	metricsInterval = flag.Int("metrics-interval", 5000, "")
 )
 
 var usage = `Usage: hey [options...] <url>
@@ -101,6 +106,12 @@ Options:
   -disable-redirects    Disable following of HTTP redirects
   -cpus                 Number of used cpu cores.
                         (default for current machine is %d cores)
+  
+  -disable-metrics      Disable minering metrics. Default is false.
+  -metrics-host         Host of metrics exporter. Default is localhost.
+  -metrics-port         Port of metrics exporter(1-65535). Default is 1010.
+  -metrics-interval     Interval of minering metrics(unit is millisecond). Default is 5000.
+	
 `
 
 func main() {
@@ -220,7 +231,15 @@ func main() {
 	}
 
 	req.Header = header
-
+	if *metricsPort < 1 || *metricsPort > 65535 {
+		usageAndExit("-metrics-port cannot be smaller than 1 and larger than 65535")
+	}
+	if *metricsInterval < 1000 {
+		usageAndExit("-metrics-interval cannot be smaller than 1000")
+	}
+	if *metricsHost == "" {
+		usageAndExit("-metrics-host cannot be nil")
+	}
 	w := &requester.Work{
 		Request:            req,
 		RequestBody:        bodyAll,
@@ -234,6 +253,10 @@ func main() {
 		H2:                 *h2,
 		ProxyAddr:          proxyURL,
 		Output:             *output,
+		DisableMetrics:     *disableMetrics,
+		MetricsHost:        *metricsHost,
+		MetricsPort:        *metricsPort,
+		MetricsInterval:    *metricsInterval,
 	}
 	w.Init()
 

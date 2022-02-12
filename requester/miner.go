@@ -1,7 +1,10 @@
 package requester
 
 import (
+	"time"
+
 	"github.com/rickzhen/hey/snapshot"
+	"github.com/rickzhen/hey/utils"
 )
 
 func (w *Work) runMiner() {
@@ -15,6 +18,7 @@ func (w *Work) runMiner() {
 		DelayMax:    0,
 		StatusCodes: make([]int, 0),
 	}
+	interval := 0
 	var avgTotal float64
 	var avgConn float64
 	var avgDelay float64
@@ -22,8 +26,25 @@ func (w *Work) runMiner() {
 	var avgReq float64
 	var avgRes float64
 	var succNum int64
+	var sizeTotal int64
+	var numRes int64
 	for res := range w.snapshots {
-		snapshot.NumRes += 1
+		if time.Duration((utils.Now()-w.start).Milliseconds())/time.Duration(w.MetricsInterval) != time.Duration(interval) {
+			snapshot.Rps = float64(numRes) / (float64(w.MetricsInterval) / 1000)
+			w.miner.SetSnapshot(snapshot)
+			avgTotal = 0
+			avgConn = 0
+			avgDelay = 0
+			avgDNS = 0
+			avgReq = 0
+			avgRes = 0
+			succNum = 0
+			sizeTotal = 0
+			numRes = 0
+			interval++
+		}
+		snapshot.NumRes++
+		numRes++
 		if res.err != nil {
 			// snapshot.ErrorDist[res.err.Error()]++
 			continue
@@ -80,17 +101,16 @@ func (w *Work) runMiner() {
 		}
 		if res.contentLength > 0 {
 			snapshot.SizeTotal += res.contentLength
+			sizeTotal += res.contentLength
 		}
 		snapshot.Total = now() - w.start
-		snapshot.Rps = float64(snapshot.NumRes) / snapshot.Total.Seconds()
 		snapshot.Average = avgTotal / float64(succNum)
 		snapshot.AvgConn = avgConn / float64(succNum)
 		snapshot.AvgDelay = avgDelay / float64(succNum)
 		snapshot.AvgDNS = avgDNS / float64(succNum)
 		snapshot.AvgReq = avgReq / float64(succNum)
 		snapshot.AvgRes = avgRes / float64(succNum)
-		snapshot.SizeReq = snapshot.SizeTotal / succNum
-		w.miner.SetSnapshot(snapshot)
+		snapshot.SizeReq = sizeTotal / succNum
 	}
 }
 

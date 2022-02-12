@@ -49,11 +49,11 @@ func NewMiner() *Miner {
 	return &Miner{}
 }
 
-func (m *Miner) Init() {
+func (m *Miner) Init(host string, port, interval int) {
 	m.stopChan = make(chan struct{})
-	m.inerval = 500
-	m.host = "localhost"
-	m.port = 1010
+	m.inerval = time.Duration(interval) / 10
+	m.host = host
+	m.port = port
 	m.snapshot = &snapshot.Report{}
 	m.rps = prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "hey_rps",
@@ -142,7 +142,6 @@ func (m *Miner) Init() {
 }
 
 func (m *Miner) Run() {
-	m.Init()
 	m.start = utils.Now()
 	http.Handle("/metrics", promhttp.Handler())
 	go func() {
