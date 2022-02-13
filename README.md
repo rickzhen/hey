@@ -61,6 +61,11 @@ Options:
   -disable-redirects    Disable following of HTTP redirects
   -cpus                 Number of used cpu cores.
                         (default for current machine is 8 cores)
+  
+  -disable-metrics      Disable minering metrics. Default is false.
+  -metrics-host         Host of metrics exporter. Default is localhost.
+  -metrics-port         Port of metrics exporter(1-65535). Default is 1010.
+  -metrics-interval     Interval of minering metrics(unit is millisecond). Default is 5000.
 ```
 
 Previously known as [github.com/rakyll/boom](https://github.com/rakyll/boom).
